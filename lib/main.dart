@@ -1,48 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:gallery_app/services/service_pokemon.dart';
-
 import 'models/pokemon.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+void main() => runApp(const MyApp());
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
-
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
   ThemeMode _themeMode = ThemeMode.dark;
-
-  void _changeTheme(ThemeMode thememode) {
-    setState(() {
-      _themeMode = thememode;
-    });
-  }
+  void _changeTheme(ThemeMode mode) => setState(() => _themeMode = mode);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      // cambiar la etiqueta de debug
       debugShowCheckedModeBanner: false,
-
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blueAccent,
-          brightness: Brightness.light,
-        ),
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color.fromARGB(255, 63, 181, 63),
-          brightness: Brightness.dark,
-        ),
-      ),
+      theme: ThemeData(brightness: Brightness.light, useMaterial3: true),
+      darkTheme: ThemeData(brightness: Brightness.dark, useMaterial3: true),
       themeMode: _themeMode,
       home: PokemonScreen(changeTheme: _changeTheme),
     );
@@ -58,99 +36,118 @@ class PokemonScreen extends StatefulWidget {
 }
 
 class _PokemonScreenState extends State<PokemonScreen> {
-  final TextEditingController _controller = TextEditingController();
   final ServicePokemon _servicePokemon = ServicePokemon();
+  final TextEditingController _controller = TextEditingController();
+  Future<Pokemon>? _futurePokemon;
+  int _currentImageIndex = 0;
 
-  Future<Pokemon>? _futurePokemom;
-
-  void _buscarPokemon() {
+  void _buscar() {
     setState(() {
-      _futurePokemom = _servicePokemon.fetchPokemon(_controller.text);
+      _currentImageIndex = 0;
+      _futurePokemon = _servicePokemon.fetchPokemon(_controller.text);
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Galeria de Pokemones")),
+      appBar: AppBar(title: const Text("Pokedex")),
       body: Padding(
-        padding: const EdgeInsets.all(18.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             TextField(
               controller: _controller,
               decoration: InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: "Nombre del pokemon",
+                hintText: "Nombre del pokémon",
+                suffixIcon: IconButton(icon: const Icon(Icons.search), onPressed: _buscar),
               ),
             ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _buscarPokemon,
-              child: Text("Buscar el pokemon"),
-            ),
-            SizedBox(height: 20),
-            Text("Datos del pokemón", style: TextStyle(fontSize: 25)),
-            SizedBox(height: 20),
-            _futurePokemom == null
-                ? Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text("Ingresar un nombre"),
-                  )
-                : Column(
-                    children: [
-                      FutureBuilder(
-                        future: _futurePokemom,
-                        builder: (context, datos) {
-                          if (datos.connectionState ==
-                              ConnectionState.waiting) {
-                            return Center(child: CircularProgressIndicator());
-                          }
+            const SizedBox(height: 20),
+            Expanded(
+              child: FutureBuilder<Pokemon>(
+                future: _futurePokemon,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                  if (snapshot.hasError) return const Center(child: Text("No encontrado"));
+                  if (!snapshot.hasData) return const Center(child: Text("Busca un Pokémon"));
 
-                          if (datos.hasError) {
-                            return Center(
-                              child: Text(
-                                "Pokemón no existe o un error en la API",
-                              ),
-                            );
-                          }
+                  final pokemon = snapshot.data!;
 
-                          // datos para desplegar lo faltante
-                          final pokemon = datos.data!;
+                  return SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        // 1. EL NOMBRE
+                        Text(
+                          pokemon.name.toUpperCase(),
+                          style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 20),
 
-                          return SingleChildScrollView(
-                            child: Column(
-                              children: [
-                                Text(pokemon.name.toLowerCase()),
-                                SizedBox(height: 20),
-                                //Image.network(pokemon.imageURL),
-                                SvgPicture.network(pokemon.imageURL),
-                              ],
+                        // 2. LA IMAGEN (Original SVG)
+                        SvgPicture.network(pokemon.imageURL, height: 200),
+                        const SizedBox(height: 30),
+
+                        // 3. ABILIDADES (Con estrella rellena)
+                        const Text("Abilidades", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 10),
+                        ...pokemon.abilities.map((ability) => Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.star, color: Colors.amber), // Estrella rellena
+                            const SizedBox(width: 8),
+                            Text(ability, style: const TextStyle(fontSize: 16)),
+                          ],
+                        )),
+                        const SizedBox(height: 40),
+
+                        // 4. GALERÍA DE IMÁGENES (Abajo de todo)
+                        const Text("Galería", style: TextStyle(fontWeight: FontWeight.bold)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Botón estrictamente "<<"
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _currentImageIndex = (_currentImageIndex > 0) ? _currentImageIndex - 1 : pokemon.gallery.length - 1;
+                                });
+                              },
+                              child: const Text("<<", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                             ),
-                          );
-
-                          //return CircularProgressIndicator();
-                        },
-                      ),
-                    ],
-                  ),
+                            // Imagen de galería
+                            Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 20),
+                              height: 120,
+                              width: 120,
+                              child: Image.network(pokemon.gallery[_currentImageIndex]),
+                            ),
+                            // Botón estrictamente ">>"
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _currentImageIndex = (_currentImageIndex < pokemon.gallery.length - 1) ? _currentImageIndex + 1 : 0;
+                                });
+                              },
+                              child: const Text(">>", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
           ],
         ),
       ),
-
-      floatingActionButton: Row(
+      floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          FloatingActionButton(
-            onPressed: () => widget.changeTheme(ThemeMode.light),
-            tooltip: 'Modo claro',
-            child: Icon(Icons.light_mode),
-          ),
-          FloatingActionButton(
-            onPressed: () => widget.changeTheme(ThemeMode.dark),
-            tooltip: 'Modo oscuro',
-            child: Icon(Icons.dark_mode),
-          ),
+          FloatingActionButton(onPressed: () => widget.changeTheme(ThemeMode.light), child: const Icon(Icons.light_mode)),
+          const SizedBox(height: 10),
+          FloatingActionButton(onPressed: () => widget.changeTheme(ThemeMode.dark), child: const Icon(Icons.dark_mode)),
         ],
       ),
     );

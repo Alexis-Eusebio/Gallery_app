@@ -1,22 +1,20 @@
-// lib/services/service_pokemon.dart
-
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/pokemon.dart';
 
 class ServicePokemon {
   Future<Pokemon> fetchPokemon(String name) async {
-    // se define la URL
     final url = Uri.parse(
-      // https://pokeapi.co/api/v2/pokemon/ditto
       'https://pokeapi.co/api/v2/pokemon/${name.toLowerCase()}',
     );
 
-    // se obtiene el recurso asíncrono
+    // Solo debe haber un "final resp"
     final resp = await http.get(url);
 
-    // regresa la respuesta
     if (resp.statusCode == 200) {
+      // Aquí imprimimos el JSON para que lo veas en la Debug Console de VS Code
+      print("JSON RECIBIDO: ${resp.body}"); 
+      
       final data = json.decode(resp.body);
       return Pokemon.fromJSON(data);
     } else {

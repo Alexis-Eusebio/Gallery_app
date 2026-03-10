@@ -1,55 +1,34 @@
-// lib/models/pokemon.dart
 class Pokemon {
   final String name;
   final List<String> abilities;
-  //final List<String> sprites;
   final String imageURL;
+  final List<String> gallery; // Lista para las fotos extras
 
   Pokemon({
     required this.name,
     required this.abilities,
     required this.imageURL,
-    //required this.sprites,
+    required this.gallery,
   });
 
   factory Pokemon.fromJSON(Map<String, dynamic> json) {
     final abilitiesList = (json['abilities'] as List)
         .map((item) => item['ability']['name'] as String)
         .toList();
-    // final spritesList = (json['sprites'] as List)
-    //     .map((item) => item['ability']['name'] as String)
-    //     .toList();
 
-    final image = json['sprites']['other']['dream_world']['front_default'];
+    // Recopilamos las imágenes para la galería
+    List<String> galleryList = [];
+    final sprites = json['sprites'];
+    if (sprites['front_default'] != null) galleryList.add(sprites['front_default']);
+    if (sprites['back_default'] != null) galleryList.add(sprites['back_default']);
+    if (sprites['front_shiny'] != null) galleryList.add(sprites['front_shiny']);
+    if (sprites['back_shiny'] != null) galleryList.add(sprites['back_shiny']);
 
     return Pokemon(
       name: json['name'],
       abilities: abilitiesList,
-      //sprites: spritesList,
-      imageURL: image,
+      imageURL: json['sprites']['other']['dream_world']['front_default'] ?? '',
+      gallery: galleryList,
     );
   }
 }
-
-
-/*
-{
-  'name': "pikachu"
-  'abilities': [
-    {
-      'ability' : {
-          'name': 'fire'
-        }
-    }
-
-  ],
-
-  'sprites': {
-    'other': 
-      'dreamWorld': {'front_default': url}
-
-  }
-
-}
-
-* */
